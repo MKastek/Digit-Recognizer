@@ -1,4 +1,3 @@
-import numpy as np
 from pathlib import Path
 from read_data import TrainDataset, TestDataset
 from torch.utils.data import DataLoader
@@ -6,57 +5,77 @@ import torch
 from model import CNN
 import torch.nn as nn
 import torch.optim as optim
-import pandas as pd
+import matplotlib.pyplot as plt
 
 
-# Set Device
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+def train(learning_rate=0.001, num_epochs=10):
 
-data_path = Path().cwd() / 'dataset'
+    def save_checkpoint(state, filename="my_checkpoint.pth.tar"):
+        print("Save checkpoint")
+        save_path = Path('checkpoint') / filename
+        torch.save(state, save_path)
 
-# Hyperparameters
-in_channel = 1
-num_classes = 10
-learning_rate = 0.001
-batch_size = 32
-num_epochs = 1
+    def load_checkpoint(checkpoint):
+        print("Loading checkpoint")
+        model.load_state_dict(checkpoint['state_dict'])
+        optimizer.load_state_dict(checkpoint['optimizer'])
 
+    # Set Device
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# Load Dataset
-train_dataset = TrainDataset(data_path / 'train.csv')
-train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True)
+    data_path = Path().cwd() / 'dataset'
 
-test_dataset = TestDataset(data_path / 'test.csv')
-test_loader = DataLoader(dataset=test_dataset, batch_size=batch_size, shuffle=False)
-
-# Initialize network
-model = CNN(in_channel=in_channel, num_classes=num_classes).to(device)
-model.train()
-criterion = nn.CrossEntropyLoss()
-optimizer = optim.Adam(model.parameters(), lr=learning_rate)
-
-
-for epoch in range(num_epochs):
-    for batch_idx, (data, targets) in enumerate(train_loader):
-        # CUDA
-        data = data.to(device=device)
-        targets = targets.to(device=device)
-
-        # forward
-        scores = model(data)
-        loss = criterion(scores, targets)
-
-        # backward
-        optimizer.zero_grad()
-        loss.backward()
-
-        optimizer.step()
+    # Hyperparameters
+    in_channel = 1
+    num_classes = 10
+    learning_rate = learning_rate
+    batch_size = 32
+    num_epochs = num_epochs
+    load_model = False
 
 
-def check_accuracy(loader, model):
+    # Load Dataset
+    train_dataset = TrainDataset(data_path / 'train.csv')
+    train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True)
+
+    # Initialize network
+    model = CNN(in_channel=in_channel, num_classes=num_classes).to(device)
+
+    criterion = nn.CrossEntropyLoss()
+    optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+
+    if load_model:
+        load_checkpoint(torch.load( Path('checkpoint') / "my_checkpoint.pth.tar"))
+
+    loss_vals = []
+    for epoch in range(num_epochs):
+
+        if epoch % 2 == 0:
+            checkpoint = {'state_dict': model.state_dict(), 'optimizer': optimizer.state_dict()}
+            save_checkpoint(checkpoint)
+        epoch_loss = []
+        for batch_idx, (data, targets) in enumerate(train_loader):
+            # CUDA
+            data = data.to(device=device)
+            targets = targets.to(device=device)
+
+            optimizer.zero_grad()
+            # forward
+            scores = model(data)
+            loss = criterion(scores, targets)
+
+            # backward
+            loss.backward()
+            optimizer.step()
+            epoch_loss.append(loss.item())
+        loss_vals.append(sum(epoch_loss) / len(epoch_loss))
+    return model, device, train_loader, loss_vals
+
+
+def check_accuracy_train(loader, model):
     num_correct = 0
     num_samples = 0
-    #model.eval()
+    model.eval()
 
     with torch.no_grad():
         for x, y in loader:
@@ -68,25 +87,23 @@ def check_accuracy(loader, model):
             num_correct += (predictions == y).sum()
             num_samples += predictions.size(0)
         print(f" {num_correct} / {num_samples} {(float(num_correct/num_samples))*100:.2f}")
-    #model.train()
-    # Add model eval
-    #model.eval()
+    model.train()
 
 
-model.eval()
-check_accuracy(loader=train_loader, model=model)
-images = pd.read_csv(r'C:\Users\marci\Desktop\Python\Digit-Recognizer\dataset\test.csv')
-images_values = images.values.reshape(len(images),1,28,28)
-predictions = np.array([])
-with torch.no_grad():
-    for image in test_loader:
-        scores = model(image)
-        _, predicted = torch.max(scores, 1)
-        predictions = np.append(predictions, predicted)
-
-print(predictions)
-df = pd.read_csv(r'C:\Users\marci\Desktop\Python\Digit-Recognizer\dataset\sample_submission.csv')
-del df['Label']
-df['Label'] = predictions.astype(int)
-df.to_csv(r'C:\Users\marci\Desktop\Python\Digit-Recognizer\dataset\sample_submission.csv',index=False)
-model.train()
+if __name__ == '__main__':
+    for learn in [0.0001, 0.001, 0.01, 0.1]:
+        for epoch in [10]:
+            learning_rate = learn
+            num_epochs = epoch
+            model, device, train_loader, losses = train(num_epochs=epoch, learning_rate=learn)
+            torch.save(model, Path().cwd() / 'model' / 'CNN-model.pt')
+            check_accuracy_train(loader=train_loader, model=model)
+            plt.plot(losses,'.-')
+            plt.title(f"Loss curve\n learning rate: {learning_rate}, epochs: {num_epochs}")
+            plt.xlabel('epoch')
+            plt.ylabel('loss')
+            plt.grid(which="minor", alpha=0.3)
+            plt.grid(which="major", alpha=0.7)
+            plt.savefig(Path() / "plots" / f"Loss_curve_epochs_{num_epochs}_lr_{learning_rate}.png")
+            plt.cla()
+            plt.clf()

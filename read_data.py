@@ -1,17 +1,14 @@
 import pandas as pd
 import torch
 from torch.utils.data import Dataset
-from pathlib import Path
-from torch.utils.data import DataLoader
-import matplotlib.pyplot as plt
 
 
 class TrainDataset(Dataset):
 
     def __init__(self, data_path):
         self.train_df = pd.read_csv(data_path)
-        self.images = self.train_df.iloc[:,1:].div(255).values.reshape(len(self.train_df),1,28,28)
-        self.img_label = self.train_df.iloc[:,0].values
+        self.images = self.train_df.iloc[:, 1:].div(255).values.reshape(len(self.train_df), 1, 28, 28)
+        self.img_label = self.train_df.iloc[:, 0].values
 
     def __len__(self):
         return len(self.img_label)
@@ -35,8 +32,4 @@ class TestDataset(Dataset):
         self.image = torch.tensor(self.images[idx], dtype=torch.float32)
         return self.image
 
-
-if __name__ == "__main__":
-    test = TestDataset(Path().cwd() / 'dataset' /'test.csv')
-    print(test.test_df)
 
