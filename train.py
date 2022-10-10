@@ -7,6 +7,7 @@ import torch.nn as nn
 import torch.optim as optim
 import matplotlib.pyplot as plt
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def train(learning_rate=0.001, num_epochs=10):
 
@@ -20,8 +21,6 @@ def train(learning_rate=0.001, num_epochs=10):
         model.load_state_dict(checkpoint['state_dict'])
         optimizer.load_state_dict(checkpoint['optimizer'])
 
-    # Set Device
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     data_path = Path().cwd() / 'dataset'
 
@@ -88,6 +87,18 @@ def check_accuracy_train(loader, model):
             num_samples += predictions.size(0)
         print(f" {num_correct} / {num_samples} {(float(num_correct/num_samples))*100:.2f}")
     model.train()
+
+
+def plot_loss_curve(losses, learning_rate, num_epochs):
+    plt.plot(losses, '.-')
+    plt.title(f"Loss curve\n learning rate: {learning_rate}, epochs: {num_epochs}")
+    plt.xlabel('epoch')
+    plt.ylabel('loss')
+    plt.grid(which="minor", alpha=0.3)
+    plt.grid(which="major", alpha=0.7)
+    plt.savefig(Path() / "plots" / f"Loss_curve_epochs_{num_epochs}_lr_{learning_rate}.png")
+    plt.cla()
+    plt.clf()
 
 
 if __name__ == '__main__':
