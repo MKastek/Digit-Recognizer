@@ -1,6 +1,8 @@
 # Digit-Recognizer
 My solution for Kaggle competition: https://www.kaggle.com/competitions/digit-recognizer  
 
+![alt text](https://github.com/MKastek/Digit-Recognizer/blob/97dffedc9eaf4c1c7d3265c6f5f73d656ab05e4b/images/mnist_dataset.png)
+
 Based on [An Ensemble of Simple Convolutional Neural Network Models for MNIST Digit Recognition](https://arxiv.org/abs/2008.10400).  
 
 The model was built based on convolutional neural networks:
